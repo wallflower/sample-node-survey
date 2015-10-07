@@ -1,0 +1,90 @@
+<html>
+
+<head>
+  <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+  <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+  <script type="text/javascript">
+    function getURLParameter(name, url) {
+          url = url || window.location;
+          return decodeURI((RegExp(name + '=' + '(.+?)(&|$)').exec(url.search)||[,null])[1]);
+      }
+      
+      var pollEvery = 5000;
+      var chartLastUpdated = new Date('2013-08-02T10:09:08Z');
+      
+      function drawChart() {
+          
+          $.ajax({
+              dataType: "json",
+              url: window.location
+          }).done(function (json) {
+              var currentUpdate = new Date(json.updated);
+              
+              if (currentUpdate > chartLastUpdated) {
+                              
+                  var chart;
+                   
+                  //this should really be a query parameter, and once the file is moved out of express
+                  //and into its own app, that should be possible.
+                  if (getURLParameter("type") == "pie") {
+                      chart = new google.visualization.PieChart(document.getElementById('chart_div'));
+                  }
+                  else if (getURLParameter("type") == "bar") {
+                      chart = new google.visualization.BarChart(document.getElementById('chart_div'));
+                  }
+                  else {
+                      chart = new google.visualization.ColumnChart(document.getElementById('chart_div'));
+                  }
+      
+                  var data = new google.visualization.DataTable();
+                  data.addColumn('string', 'Name');
+                  data.addColumn('number', 'Value');
+                  data.addColumn({type: 'number', role: 'annotation'});
+
+                 data.addRows(json.results);
+      
+                  var options = {
+                      title: json.question,
+                      legend: { position: "none" },
+                      vAxis: {minValue: 0, format:'#'},
+                      hAxis: {minValue: 0, format:'#'},
+                      annotations: {
+                          textStyle: {
+                            //fontName: 'Times-Roman',
+                            fontSize: 25,
+                            bold: true
+                            //italic: true,
+                            //color: '#871b47',     // The color of the text.
+                            //auraColor: '#d799ae', // The color of the text outline.
+                            //opacity: 0.8          // The transparency of the text.
+                          }
+                      }
+                  };
+      
+                  chart.draw(data, options); 
+                  
+                  //update timestamp
+                  chartLastUpdated = currentUpdate;
+              }
+              else {
+               //console.log("nothing updated..."); 
+              }
+              
+              //poll for updates every x seconds...
+              setTimeout(drawChart, pollEvery);
+  
+          }).error(function () {
+              //do something for errors here...
+          });
+      }
+  
+      google.load('visualization', '1', { packages: ['corechart'] });
+      google.setOnLoadCallback(drawChart);
+  </script>
+</head>
+
+<body>
+  <div id="chart_div" style="width: 900px; height: 500px;"></div>
+</body>
+
+</html>

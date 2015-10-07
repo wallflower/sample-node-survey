@@ -1,0 +1,7 @@
+{
+	"NODE_ENV" : "DEV",
+	"PORT" : "8081",
+	"TABLE_NAME" : "surveys",
+	"STORAGE_NAME" : "",
+	"STORAGE_KEY" : ""
+}
