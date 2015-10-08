@@ -21,14 +21,17 @@
   // to takeover its submit event.
   form.addEventListener("submit", function (event) {
     var urlPath = window.location.pathname.replace(/\/$/, "");
-
-    if (docCookies.hasItem("completed", window.location.pathname)) {
+    
+    if (docCookies.hasItem("completed", urlPath)) {
         event.preventDefault();
         alert("already submitted an answer to this question!");
         window.location.replace(urlPath + "/chart");
     }
     else {
-      docCookies.setItem("completed", "Form Answer", Infinity, urlPath); 
+      var selected = document.querySelector('input[name="answer"]:checked');
+      var selectValue = document.querySelector('label[for="' + selected.id + '"]').innerHTML;
+      
+      docCookies.setItem("completed", selected.value + "-" + selectValue, Infinity, urlPath); 
       alert('submit!');
     }
     
