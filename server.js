@@ -1,4 +1,6 @@
 var express = require('express');
+var exphbs = require('express-handlebars');
+
 //for reading forms...
 var bodyParser = require('body-parser');
 var url = require('url');
@@ -34,16 +36,23 @@ app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
     extended: true
 }));
 
+//setup handlebars
+app.engine('handlebars', exphbs({ defaultLayout: 'main' }));
+app.set('view engine', 'handlebars');
+
 //setup table service
 var retryOperations = new azure.ExponentialRetryPolicyFilter();
 var tableSvc = azure.createTableService(accountName, accountKey).withFilter(retryOperations);
 var entityGen = azure.TableUtilities.entityGenerator;
 
 
+//setup static files
+app.use(express.static('assets'));
 
 app.get('/', function (req, res) {
-    res.type('text/plain'); // set content-type
-    res.send('welcome to my survey app'); // send text response
+    res.render('home', {
+        title: 'Home'
+    });
 });
 
 app.get('/survey/:survey', function (req, res) {
@@ -68,9 +77,6 @@ app.get('/survey/:survey/:question/chart', function (req, res) {
                     answers = JSON.parse(resp.body.answers),
                     totals = JSON.parse(resp.body.totals),
                     results = [], i = -1;
-                
-                //lets map the two arrays into a single multivalued array for google charts    
-                //results.push(["Answers", "Totals", "Text"]);
 
                 while (answers[++i]) {
                     results.push([answers[i], totals[i], totals[i]]);
@@ -94,33 +100,10 @@ app.get('/survey/:survey/:question', function (req, res) {
         
         res.format({
             html: function () {
-                //could use handlebars and then use a template
-                //res.sendfile("./question.html");
-                var html = '<!DOCTYPE html>' +
-                    '<html>' +
-                    ' <head>' +
-                    '   <meta name="viewport" content="initial-scale=1.0, user-scalable=no">' +
-                    '   <meta charset="utf-8">' +
-                    '   <title>Question: ' + resp.body.question + '</title>' +
-                    ' </head>' +
-                    ' <body>' +
-                    '     <form method="post">' +
-                    '         <h1>' + resp.body.question + '</h1>';
-
-                var answers = JSON.parse(resp.body.answers);
-                
-                for (var i=0; i < answers.length; i++){
-                    html = html + '<input type="radio" name="answer" value="' + i.toString() + '"><label for="test1">' + answers[i] + '</label>';
-                }
-
-                html = html + '<div>' +
-                '             <button type="submit" name="action">Sumbit</button>' +
-                '         </div>' +
-                '     </form>' +
-                ' </body>' +
-                '</html>';
-
-                res.send(html);
+                res.render('question', {
+                    title: 'Question: ' + resp.body.question,
+                    answers: JSON.parse(resp.body.answers)
+                });
             },
 
             json: function () {
@@ -135,7 +118,7 @@ app.post('/survey/:survey/:question', function (req, res) {
     //if you were posting in via json, you could do a different response, and not redirect
     // something like...  telling the SPA where to redirect to: res.send({redirect: '/chart'});
     updateSurveyQuestion(req.params.survey, req.params.question, req.body.answer, function (resp) {
-        res.redirect( req.params.question + '/chart');
+        res.redirect(req.params.question + '/chart');
     });
 });
 
@@ -172,6 +155,20 @@ app.listen(port);
 
 function createSurvey(surveyName, callback) {
     var entGen = azure.TableUtilities.entityGenerator;
+
+    tableSvc.createTableIfNotExists(tableName, function tableCreated(error) {
+        if (!error) {
+            // Survey inserted
+            console.log("table created!");
+        }
+        if (error) {
+            console.log("oh oh, problem creating table: " + error)
+            var jsonE = {
+                "error": error
+            };
+            callback(jsonE);
+        }
+    });
 
     var info = {
         PartitionKey: entGen.String(surveyName),
